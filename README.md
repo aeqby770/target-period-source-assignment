@@ -1,6 +1,6 @@
-# Target-period source assignment 0.3.1
+# ReSPI 0.3.1
 
-This package estimates source periods from measured time series and reference-trained source models. Prediction uses observed timestamps, masks, period bounds and measurements. Native mixed reporters use an information-conditioned mixture of reference calibrations; simultaneous abdominal ECG sensors use a shared-landmark renewal model. Both return one normalized predictive period distribution, its expectation, the average source expectation within each run, and the corresponding individual deviation.
+**ReSPI** stands for **Reference-calibrated Source-specific Period Inference**. It estimates source periods from measured time series and reference-trained source models. Prediction uses observed timestamps, masks, period bounds and measurements. Native mixed reporters use an information-conditioned mixture of reference calibrations; simultaneous abdominal ECG sensors use a shared-landmark renewal model. Both return one normalized predictive period distribution, its expectation, the average source expectation within each run, and the corresponding individual deviation.
 
 ## Downloads
 
@@ -8,7 +8,7 @@ This package estimates source periods from measured time series and reference-tr
 
 ## Predict from a fitted model
 
-Install the supplied wheel in an environment with its declared dependencies. From the extracted project root:
+The installable distribution is `target-period-source-assignment`, and its prediction entry point is `predict_source_assignment`. Install the supplied wheel in an environment with its declared dependencies. From the extracted project root:
 
     python -m pip install https://github.com/aeqby770/target-period-source-assignment/releases/download/v0.3.1/target_period_source_assignment-0.3.1-py3-none-any.whl
     python -m predict_source_assignment --input data/sota_dev/recomputed_clean/lemna_task_period_acf_input.parquet --model results/0.3.1/unified_model.npz --output native.csv
