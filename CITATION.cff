@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: Please cite this software when using it in research.
-title: Target-period source assignment
+title: "ReSPI: Reference-calibrated Source-specific Period Inference"
 version: 0.3.1
 date-released: 2026-11-16
 license: MIT
