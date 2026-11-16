@@ -4,7 +4,7 @@ This package estimates source periods from measured time series and reference-tr
 
 ## Downloads
 
-[Version 0.3.1](https://github.com/aeqby770/target-period-source-assignment/releases/tag/v0.3.1) provides the Python wheel, deployment models with complete example inputs, and the full numerical reproduction models and data. Extract deployment_models_0.3.1.zip into the project root for prediction. Extract both reproduction archives for complete evaluation.
+[Version 0.3.1](https://github.com/aeqby770/target-period-source-assignment/releases/tag/v0.3.1) provides the Python wheel, deployment models with complete example inputs, and the full numerical reproduction models and data. Extract deployment_models_0.3.1.zip into the project root for the prediction examples. Extract both reproduction archives for complete evaluation.
 
 ## Predict from a fitted model
 
@@ -43,7 +43,7 @@ Replay the supplied models and complete comparisons:
 
     python experiments/evaluate_posterior_clock_ablations.py --family unified --stage all-evaluate --model results/0.3.1/unified_model.npz --device cpu
 
-This evaluates native exclusions, controlled mixtures, shorter and missing acquisitions, the two 2021 reporter datasets, six SCN strata, coupled clocks and fetal ECG, then runs numerical validation. Results are written to results/0.3.1. See REPRODUCING.md for reference reuse and new-source fitting.
+This evaluates native exclusions, controlled mixtures, shorter and missing acquisitions, the two 2021 reporter datasets, six SCN strata, coupled clocks and fetal ECG, then runs numerical validation. Results are written to results/0.3.1. See [software/REPRODUCING.md](software/REPRODUCING.md) for reference reuse and new-source fitting.
 
 Native comparisons include reference/calibration removals, frozen-parameter structural ablations with training-only mean recalibration, and a matched-budget Density31 fit. ECG comparisons change one component at a time and retain same-detector event-mean, event-median and ridge controls. Tables identify fit policy, reference budget, coverage, convergence and applicability. Historical 0.2.4 predictions keep their original protocol labels.
 
