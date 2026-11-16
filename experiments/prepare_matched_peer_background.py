@@ -1,0 +1,83 @@
+"""Re-express existing training interventions in raw collective-reference coordinates."""
+from pathlib import Path
+import os
+CONFIG={"paths":{"root":Path(__file__).resolve().parents[1]},"threads":os.cpu_count(),"plot":{}}
+os.environ["OMP_NUM_THREADS"]=str(CONFIG["threads"])
+os.environ["OPENBLAS_NUM_THREADS"]=str(CONFIG["threads"])
+os.environ["MKL_NUM_THREADS"]=str(CONFIG["threads"])
+import sys
+import numpy as np
+import pandas as pd
+root=CONFIG["paths"]["root"];sys.path.insert(0,str(root/"software"))
+from source_correlated_geometry import harmonic_fundamental_support
+clean=root/"data/sota_dev/recomputed_clean";out=clean/"matched_peer_background";out.mkdir(exist_ok=True)
+generator=root/"experiments/prepare_matched_source_views.py"
+code=generator.read_text(encoding="utf-8")
+sys.argv=[str(generator),"--causal-views"]
+ns={"__file__":str(generator),"__name__":"__existing_intervention_signals__"}
+exec(compile(code[:code.index("tags=np.asarray")],"<reconstruct_original_training_interventions>","exec"),ns)
+data=ns["data"];mask=data["mask"];count=mask.sum(axis=-1);time=data["time"];period=ns["period"]
+query=pd.read_parquet(clean/"lemna_task_period_acf_input.parquet")
+query["time_h"]=query.x-query.groupby("run").x.transform("min")
+table=query.pivot(index="trace_id",columns="time_h",values="signal_y").loc[data["trace_id"]]
+native=np.where(mask,table.to_numpy(),0.)
+views=np.concatenate([native[None],np.where((count==145)[None,:,None],ns["views"],native[None])])
+nview=len(views)
+centered=(time[None]-(mask*time[None]).sum(axis=-1)[:,None]/count[:,None])*mask
+trend=np.stack([mask/np.sqrt(count[:,None]),centered/np.sqrt((centered**2).sum(axis=-1))[:,None]],axis=-1)
+residual=views-np.einsum("nti,vni->vnt",trend,np.einsum("nti,vnt->vni",trend,views,optimize=True),optimize=True)
+membership=data["run_membership"];run=data["run_index"];run_n=membership.sum(axis=-1)
+scale=np.sqrt(np.einsum("rn,vn->vr",membership,(residual**2).sum(axis=-1)/count[None],optimize=True)/run_n[None])
+reference=residual/scale[:,run,None]
+peer_raw=(np.einsum("rn,vnt->vrt",membership,reference,optimize=True)[:,run]-reference)/(run_n[run][None,:,None]-1.)
+peer_rms2=(peer_raw**2).sum(axis=-1)/count[None]
+peer=peer_raw/np.sqrt(peer_rms2)[:,:,None]
+lengths,layout=np.unique(count,return_inverse=True);lm=np.arange(len(time))[None]<lengths[:,None]
+ct=(time[None]-(lm*time[None]).sum(axis=-1)[:,None]/lengths[:,None])*lm
+z=np.stack([lm/np.sqrt(lengths[:,None]),ct/np.sqrt((ct**2).sum(axis=-1))[:,None]],axis=-1)
+angle=2*np.pi*time[None]/period[:,None]
+harmonic=np.stack([np.cos(angle),np.sin(angle),np.cos(2*angle),np.sin(2*angle)],axis=-1)
+cross=np.einsum("lti,ptj->lpij",z,harmonic,optimize=True)
+gram=np.einsum("lt,pti,ptj->lpij",lm.astype(float),harmonic,harmonic,optimize=True)-cross.swapaxes(-1,-2)@cross
+rhs=np.einsum("pti,vnt->vnpi",harmonic,peer,optimize=True)
+b2=np.linalg.solve(gram[layout][None],rhs[:,:,:,:,None])[:,:,:,:,0]
+b1=np.linalg.solve(gram[layout,:,:2,:2][None],rhs[:,:,:,:2,None])[:,:,:,:,0]
+p2=(rhs*b2).sum(axis=-1)/count[None,:,None]
+p1=(rhs[:,:,:,:2]*b1).sum(axis=-1)/count[None,:,None]
+rr=np.einsum("pti,vnt->vnpi",harmonic[:,:,:2],reference,optimize=True)
+bb=np.linalg.solve(gram[layout,:,:2,:2][None],rr[:,:,:,:,None])[:,:,:,:,0]
+ref_power=(rr*bb).sum(axis=-1)/count[None,:,None]
+other=(np.einsum("rn,vnp->vrp",membership,ref_power,optimize=True)[:,run]-ref_power)/(run_n[run][None,:,None]-1.)
+coherence=np.clip(p1*peer_rms2[:,:,None]/other,0.,1.)
+rho=np.load(clean/"matched_causal_views/features.npz",allow_pickle=False)["rho"]
+np.testing.assert_equal(rho.shape,(nview,len(count)))
+support,_=harmonic_fundamental_support(time,np.tile(count,nview),peer.reshape(-1,len(time)),
+    peer.reshape(-1,len(time)),harmonic,rho.ravel())
+support=support[:,:,1].reshape(nview,len(count),len(period))
+support=np.where((count==145)[None,:,None],support,1.)
+lag=np.arange(int(np.ceil(period.max()))+1)
+fft=np.fft.rfft(peer,n=2*len(time),axis=-1)
+acf=np.fft.irfft(fft*fft.conj(),n=2*len(time),axis=-1)[:,:,lag]/(count[None,:,None]-lag[None,None])
+lo=np.floor(period).astype(int);hi=np.ceil(period).astype(int);fraction=period-lo
+at_period=acf[:,:,lo]*(1.-fraction)[None,None]+acf[:,:,hi]*fraction[None,None]
+half=period/2.;lo=np.floor(half).astype(int);hi=np.ceil(half).astype(int);fraction=half-lo
+at_half=acf[:,:,lo]*(1.-fraction)[None,None]+acf[:,:,hi]*fraction[None,None]
+base=np.stack([p1,np.maximum(p2-p1,0.)*support,at_period,at_half,coherence],axis=-1)
+l,r=np.triu_indices(5);x=np.concatenate([base,base[:,:,:,l]*base[:,:,:,r]],axis=-1)
+actual=np.load(clean/"original_scale_peer_source/features.npz",allow_pickle=False)
+ref_terms=np.isin(np.arange(13),[4,5,6,7,8]);l13,r13=np.triu_indices(13)
+feature_mask=np.r_[ref_terms,ref_terms[l13]&ref_terms[r13]]
+native_reference=actual["raw"][:,:,feature_mask]
+print("REFERENCE_REPLAY_BEFORE_104_BRANCH",np.max(abs(x[0,count==145]-native_reference[count==145])),np.max(abs(x[0,count==104]-native_reference[count==104])),flush=True)
+x=np.where((count==145)[None,:,None,None],x,native_reference[None])
+np.testing.assert_allclose(x[0],native_reference,rtol=0.,atol=1e-10)
+bg=ns["background_unit"]
+bg_rhs=np.einsum("pti,nt->npi",harmonic[:,:,:2],bg,optimize=True)
+bg_b=np.linalg.solve(gram[layout,:,:2,:2],bg_rhs[:,:,:,None])[:,:,:,0]
+shared_index=np.sum(bg_rhs*bg_b,axis=-1).argmax(axis=-1)
+native_index=np.load(clean/"lemna_task_period_background_density_fit.npz",allow_pickle=False)["background_index"]
+index=np.concatenate([native_index[None],np.broadcast_to(np.where(count==145,shared_index,native_index),(nview-1,len(count)))])
+np.savez_compressed(out/"features.npz",trace_id=data["trace_id"],reference_features=x,background_index=index,
+    feature_mask=feature_mask,view_weight=np.r_[.5,np.full(nview-1,.5/(nview-1))],period=period,
+    training_only=np.asarray(True),same_original_training_interventions=np.asarray(True))
+print("MATCHED_PEER_BG_FEATURES_READY",x.shape,"native_replay_max",float(np.max(abs(x[0]-actual["raw"][:,:,feature_mask]))),flush=True)

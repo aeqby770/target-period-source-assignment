@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: Please cite this software when using it in research.
+title: Target-period source assignment
+version: 0.3.1
+date-released: 2026-11-16
+license: MIT
+repository-code: https://github.com/aeqby770/target-period-source-assignment
+authors:
+  - family-names: Jiang
+    given-names: Hongjie
+  - family-names: Zhang
+    given-names: Xinyu
+  - family-names: Wang
+    given-names: Hong Xin
+  - family-names: Han
+    given-names: Yanxiao
+  - family-names: Han
+    given-names: Yanshuo

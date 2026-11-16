@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "target-period-source-assignment"
+version = "0.3.1"
+description = "Source-role assignment for target periods and treatment readouts"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+dependencies = ["numpy", "pandas", "scipy>=1.15.3", "torch>=2.0", "pyarrow", "scikit-learn==1.8.0", "joblib==1.5.2"]
+
+[project.optional-dependencies]
+reproduce = ["matplotlib", "Pillow"]
+
+[tool.setuptools]
+py-modules = ["predict_source_assignment", "source_assignment_unified", "source_assignment_core", "source_assignment_distribution", "source_amplitude_normalization", "source_correlated_geometry", "period_support"]
